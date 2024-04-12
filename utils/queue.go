@@ -17,20 +17,38 @@ func NewQueue[T any]() Queue[T] {
 	return Queue[T]{Len: 0}
 }
 
-func (q Queue[T]) Dequeue() (Node[T], error) {
-	if q.Len == 0 {
-		return Node[T]{}, errors.New("Empty queue.")
+func (q *Queue[T]) Dequeue() (T, error) {
+	var data T
+
+	switch q.Len {
+	case 0:
+		return data, errors.New("Empty Queue")
+	case 1:
+		data = q.First.Data
+		q.First = nil
+		q.Last = nil
+	default:
+		data = q.First.Data
+		q.First = q.First.Next
 	}
 
-	first := *q.First
-	q.First = q.First.Next
 	q.Len--
 
-	return first, nil
+	return data, nil
 }
 
-func (q *Queue[T]) Enqueue(nodePtr *Node[T]) {
-	q.Last.Next = nodePtr
-	q.Last = nodePtr
+func (q *Queue[T]) Enqueue(elem T) {
+	node := Node[T]{Data: elem, Next: nil}
+
+	switch q.Len {
+	case 0:
+		q.First = &node
+	case 1:
+		q.First.Next = &node
+	default:
+		q.Last.Next = &node
+	}
+
+	q.Last = &node
 	q.Len++
 }

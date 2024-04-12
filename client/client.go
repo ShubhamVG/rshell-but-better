@@ -31,8 +31,8 @@ func (client *Client) communicate() {
 		// TODO
 	}
 
-	bufferToSend := client.processRequest(receivedBuffer[:n])
-	_, err = conn.Write(bufferToSend)
+	responseBuffer := client.processRequestAndGiveResponse(receivedBuffer[:n])
+	_, err = conn.Write(responseBuffer)
 }
 
 func (client *Client) executeCommand() {
@@ -48,6 +48,6 @@ func (client *Client) executeCommand() {
 }
 
 // TODO
-func (client *Client) processRequest(buffer []byte) []byte {
+func (client *Client) processRequestAndGiveResponse(buffer []byte) []byte {
 	return buffer
 }

@@ -16,7 +16,7 @@ func NewClient(addr, port string) Client {
 	return Client{Address: addr, Port: port, commandToExecute: commandBuffer}
 }
 
-func (client *Client) communicate() {
+func (client *Client) Communicate() {
 	addr := client.Address + ":" + client.Port
 	conn, err := net.Dial("tcp", addr)
 

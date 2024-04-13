@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"net"
 
-	"../utils"
+	. "../utils"
 )
 
 type Server struct {
-	JoinedConnections utils.Set[string]
-	SendRequests      utils.Queue[string]
-	ReceivedRequests  utils.Queue[string]
+	JoinedConnections Set[string]
+	RequestsToSend    Queue[Request]
+	ReceivedRequests  Queue[Request]
 	Address           string
 	Port              uint
 	NextPort          uint
@@ -28,8 +28,13 @@ func NewServer(
 }
 
 // TODO
-func (serv *Server) processRequest(receivedBuffer []byte) []byte {
-	return receivedBuffer
+func (serv *Server) processRequest(connAddr string, receivedBuffer []byte) {
+	statusCode := receivedBuffer[0]
+
+	switch statusCode {
+	case PING:
+		serv.JoinedConnections.Add(connAddr)
+	}
 }
 
 func (serv *Server) Start() error {
@@ -37,30 +42,59 @@ func (serv *Server) Start() error {
 	listener, err := net.Listen("tcp", addr)
 
 	if err != nil {
-		// TODO
+		return fmt.Errorf("Failed to start server")
 	}
 
 	defer listener.Close()
 
+	var reqToSend Request
+	toFetchRequest := true
+	var failedRequestCount uint8 = 0
+
 	for {
+		if toFetchRequest && serv.RequestsToSend.Len != 0 {
+			reqToSend, _ = serv.ReceivedRequests.Dequeue()
+		}
+
 		conn, err := listener.Accept()
+		connAddr := conn.LocalAddr().String()
 
 		if err != nil {
-			// TODO
+			fmt.Println("Failed to accept connection: " + connAddr)
+			continue
 		}
 
 		receivedBuffer := make([]byte, 1024)
 		n, err := conn.Read(receivedBuffer)
 
 		if err != nil {
-			// TODO
+			fmt.Println("Failed to read from " + connAddr)
+			continue
 		}
 
-		replyBytes := serv.processRequest(receivedBuffer[:n])
-		_, err = conn.Write(replyBytes)
+		serv.processRequest(connAddr, receivedBuffer[:n])
 
-		if err != nil {
-			// TODO
+		if reqToSend.Addr == connAddr {
+			_, err = conn.Write(reqToSend.ContentBuffer)
+
+			if err != nil {
+				fmt.Println("Failed to send bytes to " + connAddr)
+				continue
+			}
+
+			failedRequestCount = 0
+			toFetchRequest = true
+		} else if failedRequestCount > failedSendRequestLimit {
+			// Drop the connection if Addr is not connected else enqueue it
+
+			if serv.JoinedConnections.Contains(reqToSend.Addr) {
+				serv.RequestsToSend.Enqueue(reqToSend)
+			}
+
+			toFetchRequest = true
+			failedRequestCount = 0
+		} else {
+			failedRequestCount++
 		}
 	}
 }

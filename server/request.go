@@ -1,6 +1,13 @@
 package server
 
 type Request struct {
-	Addr          string
+	Addr          UniqueConnAddr
 	ContentBuffer []byte
+}
+
+func parseIntoRequest(
+	uniqueAddr UniqueConnAddr,
+	contentBuffer []byte,
+) Request {
+	addr := 
 }

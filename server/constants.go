@@ -1,5 +1,7 @@
 package server
 
+import "time"
+
 const (
-	failedSendRequestLimit uint8 = 10
+	readTimeLimit = 2 * time.Second
 )

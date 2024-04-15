@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	. "../commons"
 	. "../utils"
 )
 
@@ -15,11 +16,28 @@ import (
 
 type Server struct {
 	JoinedConnections map[UniqueConnAddr]net.Conn
-	RequestsToSend    Queue[Request]
-	ReceivedResponses Queue[Request] // this is stupid
+	ReceivedResponses Queue[Response] // this is stupid
 	Address           string
 	Port              uint
 	// NextPort          uint        // to be implemented or dropped later
+}
+
+func (srvr *Server) Send(reqPtr *Request) error {
+	req := *reqPtr
+	uniqAddr := req.UniqueAddr
+
+	if conn, ok := srvr.JoinedConnections[uniqAddr]; ok {
+		contentBuffer := []byte(req.Body)
+		_, err := conn.Write(contentBuffer)
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("Connection not in JoinedConnection")
 }
 
 func (srvr *Server) Start() error {
@@ -34,7 +52,6 @@ func (srvr *Server) Start() error {
 	defer listener.Close()
 
 	go srvr.acceptConnections(&listener)
-	go srvr.handleSends()
 	go srvr.handleReceives()
 
 	// Prevents the process from exiting right away
@@ -58,8 +75,8 @@ func (srvr *Server) acceptConnections(lstnrPtr *net.Listener) {
 			// TODO
 		}
 
-		uniqueAddr := getUniqueConnAddr(&conn)
-		srvr.JoinedConnections[uniqueAddr] = conn
+		uniqAddr := GetUniqueConnAddr(&conn)
+		srvr.JoinedConnections[uniqAddr] = conn
 	}
 }
 
@@ -69,33 +86,44 @@ func (srvr *Server) destructivelyCloseAllConnections() {
 	}
 }
 
+// Receive and call processResponse
 func (srvr *Server) handleReceives() {
-	for uniqueAddr, conn := range srvr.JoinedConnections {
+	for uniqAddr, conn := range srvr.JoinedConnections {
 		buffer := make([]byte, 1024)
 		conn.SetReadDeadline(time.Now().Add(readTimeLimit))
 		n, err := conn.Read(buffer)
 
 		switch err {
-		case nil:
-			// TODO
-			receivedReq := parseIntoRequest(uniqueAddr, buffer[:n])
-			srvr.ReceivedResponses.Enqueue(receivedReq)
 		case os.ErrDeadlineExceeded:
 			continue
 		case net.ErrClosed:
 			// TODO (maybe remove the connection?)
+			continue
+		}
+
+		receivedResponse := ParseIntoResponse(uniqAddr, buffer[:n])
+		srvr.ReceivedResponses.Enqueue(receivedResponse)
+		srvr.processResponse(receivedResponse)
+	}
+}
+
+func (srvr *Server) processResponse(response Response) {
+	switch response.Status {
+	case PING:
+		// TODO
+	case REQUESTING_CLOSE:
+		if conn, ok := srvr.JoinedConnections[response.UniqueAddr]; ok {
+			srvr.removeConnection(&conn)
+		} else {
+			// TODO
 		}
 	}
 }
 
 // Closes the connection and removes it from JoinedConnections
 func (srvr *Server) removeConnection(connPtr *net.Conn) {
-	uniqueAddr := getUniqueConnAddr(connPtr)
+	uniqAddr := GetUniqueConnAddr(connPtr)
 	(*connPtr).Close()
 
-	delete(srvr.JoinedConnections, uniqueAddr)
-}
-
-// TODO
-func (srvr *Server) handleSends() {
+	delete(srvr.JoinedConnections, uniqAddr)
 }

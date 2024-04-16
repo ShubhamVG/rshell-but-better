@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	. "../commons"
-	. "../utils"
+	. "../data_structures"
+	. "../network"
 )
 
 // ============================Exportables==========================
@@ -19,7 +19,17 @@ type Server struct {
 	ReceivedResponses Queue[Response] // this is stupid
 	Address           string
 	Port              uint
-	// NextPort          uint        // to be implemented or dropped later
+}
+
+func NewServer(addr string, port uint) Server {
+	joinedConnections := map[UniqueConnAddr]net.Conn{}
+	receivedResponses := NewQueue[Response]()
+	return Server{
+		Address:           addr,
+		Port:              port,
+		JoinedConnections: joinedConnections,
+		ReceivedResponses: receivedResponses,
+	}
 }
 
 func (srvr *Server) Send(reqPtr *Request) error {
@@ -123,6 +133,8 @@ func (srvr *Server) processResponse(response Response) {
 		} else {
 			// TODO
 		}
+	case OUTPUT: // TODO or TO DROP
+	case OUTPUT_WITH_ERROR: // TODO or TO DROP
 	}
 }
 

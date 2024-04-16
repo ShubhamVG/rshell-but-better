@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	. "../commons"
+	. "../network"
 )
 
 // ============================Exportables==========================
@@ -36,20 +36,6 @@ func (client *Client) Communicate() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sig
-}
-
-func (client *Client) Send(
-	statusCode StatusCode,
-	bytes []byte,
-) error {
-	payload := []byte{statusCode}
-	payload = append(payload, bytes...)
-
-	if _, err := client.Conn.Write(payload); err != nil {
-		// TODO (idk what to do)
-	}
-
-	return nil
 }
 
 // ==============================Internals============================
@@ -86,11 +72,25 @@ func (client *Client) processRequestAndSendResponse(req Request) {
 		out, err := exec.Command(command, params...).Output()
 
 		if err != nil {
-			client.Send(OUTPUT_WITH_ERROR, out)
+			client.send(OUTPUT_WITH_ERROR, out)
 		} else {
-			client.Send(OUTPUT, out)
+			client.send(OUTPUT, out)
 		}
 	}
+}
+
+func (client *Client) send(
+	statusCode StatusCode,
+	bytes []byte,
+) error {
+	payload := []byte{statusCode}
+	payload = append(payload, bytes...)
+
+	if _, err := client.Conn.Write(payload); err != nil {
+		// TODO (idk what to do)
+	}
+
+	return nil
 }
 
 func (client *Client) tryNotifyAndClose() {

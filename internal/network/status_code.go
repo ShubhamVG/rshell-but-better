@@ -1,4 +1,4 @@
-package commons
+package network
 
 type StatusCode = uint8
 

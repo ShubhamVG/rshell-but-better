@@ -1,4 +1,4 @@
-package commons
+package network
 
 // Design it first goddamnit
 type Request struct {

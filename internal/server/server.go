@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	. "../data_structures"
-	. "../network"
+	. "github.com/ShubhamVG/rshell-but-better/internal/data_structures"
+	. "github.com/ShubhamVG/rshell-but-better/internal/network"
 )
 
 // ============================Exportables==========================
@@ -38,10 +38,9 @@ func (srvr *Server) Send(reqPtr *Request) error {
 
 	// TODO: Write documentation
 	if conn, ok := srvr.JoinedConnections[uniqAddr]; ok {
-		payload := []byte{req.Status}
+		payloadBuffer := []byte{req.Status}
 		reqBuffer := []byte(req.Payload)
-		payload = append(payload, reqBuffer...)
-		payloadBuffer := []byte(req.Payload)
+		payloadBuffer = append(payloadBuffer, reqBuffer...)
 		_, err := conn.Write(payloadBuffer)
 
 		if err != nil {
@@ -51,7 +50,7 @@ func (srvr *Server) Send(reqPtr *Request) error {
 		return nil
 	}
 
-	return fmt.Errorf("Connection not in JoinedConnection")
+	return fmt.Errorf("connection not in JoinedConnection")
 }
 
 func (srvr *Server) Start() error {
@@ -62,7 +61,7 @@ func (srvr *Server) Start() error {
 		return err
 	}
 
-	defer srvr.destructivelyCloseAllConnections() // maybe useless
+	defer srvr.notifyAndCloseAllConnections() // maybe useless
 	defer listener.Close()
 
 	go srvr.acceptConnections(&listener)
@@ -70,7 +69,7 @@ func (srvr *Server) Start() error {
 
 	// Prevents the process from exiting right away
 	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sig
 
 	return nil
@@ -87,6 +86,7 @@ func (srvr *Server) acceptConnections(lstnrPtr *net.Listener) {
 
 		if err != nil {
 			// TODO
+			continue
 		}
 
 		uniqAddr := GetUniqueConnAddr(&conn)
@@ -94,8 +94,9 @@ func (srvr *Server) acceptConnections(lstnrPtr *net.Listener) {
 	}
 }
 
-func (srvr *Server) destructivelyCloseAllConnections() {
+func (srvr *Server) notifyAndCloseAllConnections() {
 	for _, conn := range srvr.JoinedConnections {
+		conn.Write([]byte{REQUESTING_CLOSE})
 		conn.Close()
 	}
 }

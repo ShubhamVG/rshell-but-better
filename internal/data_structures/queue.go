@@ -22,7 +22,7 @@ func (q *Queue[T]) Dequeue() (T, error) {
 
 	switch q.Len {
 	case 0:
-		return data, errors.New("Empty Queue")
+		return data, errors.New("empty queue")
 	case 1:
 		data = q.First.Data
 		q.First = nil

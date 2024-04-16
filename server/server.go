@@ -26,9 +26,13 @@ func (srvr *Server) Send(reqPtr *Request) error {
 	req := *reqPtr
 	uniqAddr := req.UniqueAddr
 
+	// TODO: Write documentation
 	if conn, ok := srvr.JoinedConnections[uniqAddr]; ok {
-		contentBuffer := []byte(req.Body)
-		_, err := conn.Write(contentBuffer)
+		payload := []byte{req.Status}
+		reqBuffer := []byte(req.Payload)
+		payload = append(payload, reqBuffer...)
+		payloadBuffer := []byte(req.Payload)
+		_, err := conn.Write(payloadBuffer)
 
 		if err != nil {
 			return err
@@ -88,8 +92,10 @@ func (srvr *Server) destructivelyCloseAllConnections() {
 
 // Receive and call processResponse
 func (srvr *Server) handleReceives() {
+	buffer := make([]byte, 1024)
+
 	for uniqAddr, conn := range srvr.JoinedConnections {
-		buffer := make([]byte, 1024)
+		// buffer := make([]byte, 1024)
 		conn.SetReadDeadline(time.Now().Add(readTimeLimit))
 		n, err := conn.Read(buffer)
 

@@ -8,22 +8,23 @@ import (
 	"syscall"
 	"time"
 
-	. "github.com/ShubhamVG/rshell-but-better/internal/data_structures"
-	. "github.com/ShubhamVG/rshell-but-better/internal/network"
+	"github.com/ShubhamVG/rshell-but-better/internal/datastructs"
+	"github.com/ShubhamVG/rshell-but-better/internal/network"
 )
 
 // ============================Exportables==========================
 
 type Server struct {
-	JoinedConnections map[UniqueConnAddr]net.Conn
-	ReceivedResponses Queue[Response] // this is stupid
+	JoinedConnections map[network.UniqueConnAddr]net.Conn
+	ReceivedResponses datastructs.Bucket[network.Response]
 	Address           string
 	Port              uint
 }
 
 func NewServer(addr string, port uint) Server {
-	joinedConnections := map[UniqueConnAddr]net.Conn{}
-	receivedResponses := NewQueue[Response]()
+	joinedConnections := map[network.UniqueConnAddr]net.Conn{}
+	receivedResponses := datastructs.NewBucket[network.Response](100)
+
 	return Server{
 		Address:           addr,
 		Port:              port,
@@ -32,18 +33,18 @@ func NewServer(addr string, port uint) Server {
 	}
 }
 
-func (srvr *Server) Send(reqPtr *Request) error {
+func (srvr *Server) Send(reqPtr *network.Request) error {
 	req := *reqPtr
 	uniqAddr := req.UniqueAddr
 
-	// TODO: Write documentation
+	// Stitching the status code and payload and then sending it
 	if conn, ok := srvr.JoinedConnections[uniqAddr]; ok {
 		payloadBuffer := []byte{req.Status}
 		reqBuffer := []byte(req.Payload)
 		payloadBuffer = append(payloadBuffer, reqBuffer...)
-		_, err := conn.Write(payloadBuffer)
+		conn.SetWriteDeadline(time.Now().Add(writeTimeLimit))
 
-		if err != nil {
+		if _, err := conn.Write(payloadBuffer); err != nil {
 			return err
 		}
 
@@ -61,7 +62,7 @@ func (srvr *Server) Start() error {
 		return err
 	}
 
-	defer srvr.notifyAndCloseAllConnections() // maybe useless
+	defer srvr.notifyAndCloseAllConnections()
 	defer listener.Close()
 
 	go srvr.acceptConnections(&listener)
@@ -85,19 +86,11 @@ func (srvr *Server) acceptConnections(lstnrPtr *net.Listener) {
 		conn, err := listener.Accept()
 
 		if err != nil {
-			// TODO
 			continue
 		}
 
-		uniqAddr := GetUniqueConnAddr(&conn)
+		uniqAddr := network.GetUniqueConnAddr(&conn)
 		srvr.JoinedConnections[uniqAddr] = conn
-	}
-}
-
-func (srvr *Server) notifyAndCloseAllConnections() {
-	for _, conn := range srvr.JoinedConnections {
-		conn.Write([]byte{REQUESTING_CLOSE})
-		conn.Close()
 	}
 }
 
@@ -106,7 +99,6 @@ func (srvr *Server) handleReceives() {
 	buffer := make([]byte, 1024)
 
 	for uniqAddr, conn := range srvr.JoinedConnections {
-		// buffer := make([]byte, 1024)
 		conn.SetReadDeadline(time.Now().Add(readTimeLimit))
 		n, err := conn.Read(buffer)
 
@@ -114,34 +106,37 @@ func (srvr *Server) handleReceives() {
 		case os.ErrDeadlineExceeded:
 			continue
 		case net.ErrClosed:
-			// TODO (maybe remove the connection?)
+			srvr.removeConnection(&conn)
 			continue
 		}
 
-		receivedResponse := ParseIntoResponse(uniqAddr, buffer[:n])
-		srvr.ReceivedResponses.Enqueue(receivedResponse)
+		receivedResponse := network.ParseIntoResponse(uniqAddr, buffer[:n])
+		srvr.ReceivedResponses.Append(receivedResponse)
 		srvr.processResponse(receivedResponse)
 	}
 }
 
-func (srvr *Server) processResponse(response Response) {
+func (srvr *Server) notifyAndCloseAllConnections() {
+	for _, conn := range srvr.JoinedConnections {
+		conn.Write([]byte{network.REQUESTING_CLOSE})
+		conn.Close()
+	}
+}
+
+func (srvr *Server) processResponse(response network.Response) {
 	switch response.Status {
-	case PING:
+	case network.PING:
 		// TODO
-	case REQUESTING_CLOSE:
+	case network.REQUESTING_CLOSE:
 		if conn, ok := srvr.JoinedConnections[response.UniqueAddr]; ok {
 			srvr.removeConnection(&conn)
-		} else {
-			// TODO
 		}
-	case OUTPUT: // TODO or TO DROP
-	case OUTPUT_WITH_ERROR: // TODO or TO DROP
 	}
 }
 
 // Closes the connection and removes it from JoinedConnections
 func (srvr *Server) removeConnection(connPtr *net.Conn) {
-	uniqAddr := GetUniqueConnAddr(connPtr)
+	uniqAddr := network.GetUniqueConnAddr(connPtr)
 	(*connPtr).Close()
 
 	delete(srvr.JoinedConnections, uniqAddr)

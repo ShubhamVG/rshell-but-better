@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	server := server.NewServer("localhost", 8080)
 	fmt.Println("Starting server...")
+	server := server.NewServer("localhost", 8080)
 	server.Start()
 }

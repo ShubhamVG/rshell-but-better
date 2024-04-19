@@ -11,7 +11,7 @@ func main() {
 	server, err := client.NewClient("localhost", "8080")
 
 	if err != nil {
-		fmt.Println("Failed starting the server.")
+		fmt.Println("Something went wrong.")
 		os.Exit(1)
 	}
 

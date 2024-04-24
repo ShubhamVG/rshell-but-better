@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../bloc/connections_bloc/connections_bloc.dart';
 import 'response_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -27,30 +29,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _body() {
     return Column(
-      children: [
-        _topBar(),
-        _outputContainer(),
-        _entryArea(),
-      ],
+      children: [_topBar(), _outputContainer(), _entryArea()],
     );
   }
 
   Widget _connectionsDropdown() {
-    // TODO: Remove
-    List<String> testStrings = [
-      "123",
-      "456",
-      "789",
-      "101112",
-      "131415",
-    ];
-
-    return DropdownButton(
-      value: "123",
-      items: testStrings.map((e) {
-        return DropdownMenuItem(value: e, child: Text(e));
-      }).toList(),
-      onChanged: (_) {},
+    return BlocBuilder<ConnectionsBloc, ConnectionsState>(
+      builder: (context, state) {
+        return DropdownButton(
+          value: (state.selected == "") ? null : state.selected,
+          items: state.connections.map((item) {
+            return DropdownMenuItem(value: item, child: Text(item));
+          }).toList(),
+          onChanged: (selectedVal) {
+            if (selectedVal == null) return;
+            context
+                .read<ConnectionsBloc>()
+                .add(ConnectionDropdownUpdate(selectedVal));
+          },
+        );
+      },
     );
   }
 
@@ -80,11 +78,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _outputContainer() {
     final res1 = Response(200, "This is response 1 or something idk",
         DateTime.timestamp().toString());
-    final res3 = Response(
+    final res2 = Response(
         200,
         "This is resjfdsfsj fdsfsdf sd f sd fsfsdfsdg sg s gfdgfd hdhg gfhjfgh gfhfgh gponse 1 or something idk",
         DateTime.timestamp().toString());
-    final res2 = Response(200, "Thdk", DateTime.timestamp().toString());
+    final res3 = Response(200, "Thdk", DateTime.timestamp().toString());
     final List<ResponseCard> responseCards = [
       ResponseCard(res: res1),
       ResponseCard(res: res2),

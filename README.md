@@ -19,7 +19,9 @@ The client works on one goroutine only. Just to receive data which are terminal 
 
 ## Frontend
 
-There is also a frontend part which is written* (actually being written as of now) using Flutter. It is technically just a client but written in dart and its purpose is to act as an admin monitor as it would be awful to run a GUI from the shared server like a tiny VPS.
+~~There is also a frontend part which is written* (actually being written as of now) using Flutter. It is technically just a client but written in dart and its purpose is to act as an admin monitor as it would be awful to run a GUI from the shared server like a tiny VPS.~~
+
+Update: Due to limitations and moving priorities, there will be no progress on the frontend part and I am removing it from the repo as it is incomplete. The biggest limitation was the TCP communication between two different programming languages. They don't use buffers so the frontend (written in dart) was receiving multiple pieces of data at the same time and this could have been easily solved by adding a "limiter" character or something but as I am working on a different project right now, I will not be working on the frontend of this and hence it is being removed.
 
 ## TODO(s)
 - Complete the frontend.

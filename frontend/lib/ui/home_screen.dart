@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:frontend/tcp/tcp.dart';
 
 import '../bloc/connections_bloc/connections_bloc.dart';
 import 'response_card.dart';
@@ -68,13 +71,23 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          ElevatedButton(onPressed: () {}, child: const Text("Send")), // TODO
+          ElevatedButton(
+            onPressed: _sendData,
+            child: const Text("Send"),
+          ), // TODO
         ],
       ),
     );
   }
 
-  // TODO
+  void _sendData() async {
+    print("Sending");
+    final List<int> entryCodeUnits = entryController.text.codeUnits;
+    final Uint8List payload = Uint8List.fromList(entryCodeUnits);
+    await sendData(payload: payload);
+    entryController.clear();
+  }
+
   Widget _outputContainer() {
     final res1 = Response(200, "This is response 1 or something idk",
         DateTime.timestamp().toString());

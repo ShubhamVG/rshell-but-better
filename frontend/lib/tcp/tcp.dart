@@ -9,18 +9,19 @@ Future<void> tcpStuff({required ConnectionsBloc connectionsBloc}) async {
   const String serverIp = '127.0.0.1';
   const int serverPort = 8080;
 
+  // TODO: Add error handler
   socket = await Socket.connect(serverIp, serverPort);
 
   socket.listen((data) {
     final String str = String.fromCharCodes(data);
     connectionsBloc.add(ConnectionAdded(str));
+  }, onDone: () {
+    socket.flush();
   });
 }
 
 Future<void> sendData({
-  required int taskCode,
   required Uint8List payload,
 }) async {
-  payload.insert(0, taskCode);
   socket.write(payload);
 }

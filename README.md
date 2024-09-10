@@ -28,3 +28,5 @@ Update: Due to limitations and moving priorities, there will be no progress on t
 - Maybe add encryption.
 
 Thanks for reading till here. Drop me a hi on Discord or email me. (And yes, I do read my emails everyday.)
+
+Update: I got busy with other things so I won't push updates to this "first Go project". Go is a great language. I use it almost a lot and I do suggest others to learn it. With that being said, this project is now being archived as of 10th of Sept, 2024.
